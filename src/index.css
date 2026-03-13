@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #D4AF37;
+  --color-gold-dark: #A68A2D;
+  --color-gold-light: #F1D279;
+  --color-matte-black: #1A1A1A;
+  --color-electric-blue: #007BFF;
+}
+
+:root {
+  background-color: #000000;
+  color: white;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* Elimina el delay de 300ms en taps y evita zoom por doble toque */
+  touch-action: manipulation;
+  /* Asegura que el texto sea seleccionable en inputs */
+  -webkit-user-select: auto;
+  user-select: auto;
+}
