@@ -1,10 +1,11 @@
 /**
- * Golden Wallet Elite — Service Worker v1.0
+ * Golden Wallet Elite — Service Worker v2.0
  * Estrategia: Cache-First para el shell de la app, Network-First para datos.
- * Esto permite que Chrome/Safari detecten la app como instalable (PWA).
+ * v2: Notifica al cliente cuando hay nueva versión activa.
+ * REGLA CRÍTICA: Nunca limpiar localStorage/IndexedDB. Solo caches de assets.
  */
 
-const CACHE_NAME = 'golden-wallet-v1';
+const CACHE_NAME = 'golden-wallet-v2';
 
 // Recursos del shell que se cachean al instalar
 const SHELL_ASSETS = [
@@ -28,19 +29,30 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// ─── ACTIVATE: limpiar caches antiguas ───────────────────────────────────────
+// ─── ACTIVATE: limpiar caches antiguas y notificar clientes ──────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys
           .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+          .map((key) => {
+            console.log('[SW] Eliminando caché obsoleta:', key);
+            return caches.delete(key); // Solo borra caches de ASSETS, nunca localStorage
+          })
       )
-    )
+    ).then(() => {
+      // Tomar control de todas las pestañas abiertas
+      return self.clients.claim();
+    }).then(() => {
+      // Notificar a todos los clientes que hay nueva versión activa
+      return self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
+        });
+      });
+    })
   );
-  // Tomar control de todas las pestañas abiertas
-  self.clients.claim();
 });
 
 // ─── FETCH: Cache-First para assets, Network-First para GAS/APIs ─────────────
@@ -49,7 +61,7 @@ self.addEventListener('fetch', (event) => {
 
   // Peticiones a Google Apps Script: siempre red (nunca cachear)
   if (url.hostname.includes('script.google.com') || url.hostname.includes('google.com')) {
-    return; // Deja que el browser maneje normalmente
+    return;
   }
 
   // Peticiones de navegación (HTML): Network-First con fallback a cache

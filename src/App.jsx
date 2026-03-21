@@ -51,9 +51,11 @@ function App() {
   const [soulPhrase, setSoulPhrase] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [quickExpenseCategory, setQuickExpenseCategory] = useState(null);
+  const [humorToast, setHumorToast] = useState(null);
   const [showNovedadBanner, setShowNovedadBanner] = useState(
     () => !localStorage.getItem('gw_novedad_categorias_v1')
   );
+  const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [monthlyTotals, setMonthlyTotals] = useState({});
   const [budget, setBudget] = useState(0);
 
@@ -64,6 +66,17 @@ function App() {
     // Elegir frase del alma aleatoria al montar
     const randomIdx = Math.floor(Math.random() * SOUL_PHRASES.length);
     setSoulPhrase(SOUL_PHRASES[randomIdx]);
+  }, []);
+
+  // 2b. LISTENER DE ACTUALIZACIÓN DEL SERVICE WORKER
+  useEffect(() => {
+    const handleSWMessage = (event) => {
+      if (event.data?.type === 'SW_UPDATED') {
+        setShowUpdateToast(true);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
   }, []);
 
   // 3. LÓGICA DE RELOJ
@@ -436,6 +449,23 @@ function App() {
     LocalVaultService.saveData(currentData);
     fetchData(year);
     setIsCalculatorOpen(false);
+    showHumorToast();
+  };
+
+  const HUMOR_TOASTS = [
+    "¡Dinero registrado! Tu billetera te lo agradece 💸",
+    "¡Boom! Guardado con éxito. La disciplina es riqueza 🚀",
+    "¡Apuntado, inversionista! Cada euro tiene su historia 🦅",
+    "¡Listo! Un paso más hacia la libertad financiera 👑",
+    "¡Registrado en la Bóveda! Tu yo del futuro te lo agradecerá 💰",
+    "¡Tachán! Gasto controlado. Tú mandas aquí 🛡️",
+    "¡Anotado! Tu patrimonio siempre bajo control 📊",
+  ];
+
+  const showHumorToast = () => {
+    const msg = HUMOR_TOASTS[Math.floor(Math.random() * HUMOR_TOASTS.length)];
+    setHumorToast(msg);
+    setTimeout(() => setHumorToast(null), 3200);
   };
 
   const handleQuickExpenseRegister = ({ monto, categoria, descripcion }) => {
@@ -455,6 +485,7 @@ function App() {
     LocalVaultService.saveData(currentData);
     fetchData(year);
     setQuickExpenseCategory(null);
+    showHumorToast();
   };
 
   const handleSetBudget = (amount) => {
@@ -591,7 +622,7 @@ function App() {
 
   // 9. RENDER DASHBOARD (AUTENTICADO)
   return (
-    <div className="min-h-screen bg-black text-white pb-24 font-sans italic">
+    <div className="min-h-screen bg-deep-dark text-white pb-24 font-sans italic">
       <div className="max-w-md mx-auto relative">
         <AnimatePresence>
           {isAuthorized === false && (
@@ -736,6 +767,14 @@ function App() {
         )}
         {currentView === 'historico' && <HistoryView expenses={allExpenses || []} onDelete={handleDeleteExpense} />}
         {currentView === 'config' && <ProfileView user={user} onLogout={handleLogout} onResetCache={handleResetCache} />}
+
+        {/* ── VERSIÓN FOOTER ── */}
+        <div className="flex justify-center pb-2">
+          <span className="text-[9px] text-white/15 font-mono tracking-widest select-none">
+            v1.2.0 · Sincronizado
+          </span>
+        </div>
+
         <BottomNav activeView={currentView} onViewChange={(v) => v === 'calculadora' ? setIsCalculatorOpen(true) : setCurrentView(v)} />
       </div>
 
@@ -743,13 +782,41 @@ function App() {
 
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      {/* Botón Flotante de Ayuda */}
+      {/* ── FAB: Añadir Gasto ── */}
+      <motion.button
+        whileTap={{ scale: 0.88 }}
+        onClick={() => setActiveModal('text')}
+        className="fab-pulse fixed bottom-24 right-4 z-50 w-16 h-16 bg-gold rounded-full flex items-center justify-center shadow-xl shadow-gold/30"
+        aria-label="Añadir gasto"
+      >
+        <Zap size={28} className="text-black" fill="currentColor" />
+      </motion.button>
+
+      {/* Botón Flotante de Ayuda — movido arriba para no chocar con el FAB */}
       <button
         onClick={() => setShowHelp(true)}
-        className="fixed bottom-24 right-6 z-50 w-12 h-12 bg-gold/10 backdrop-blur-md border border-gold/20 rounded-full flex items-center justify-center text-gold shadow-lg shadow-gold/10 hover:bg-gold/20 transition-all"
+        className="fixed bottom-44 right-4 z-50 w-11 h-11 bg-gold/10 backdrop-blur-md border border-gold/20 rounded-full flex items-center justify-center text-gold shadow-lg shadow-gold/10 hover:bg-gold/20 transition-all"
       >
-        <HelpCircle size={24} />
+        <HelpCircle size={20} />
       </button>
+
+      {/* ── HUMOR TOAST ── */}
+      <AnimatePresence>
+        {humorToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-4 right-4 z-[150] max-w-md mx-auto"
+          >
+            <div className="bg-[#0f172a] border border-gold/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl shadow-gold/10">
+              <div className="h-[2px] absolute top-0 left-0 right-0 bg-gradient-to-r from-transparent via-gold to-transparent rounded-t-2xl" />
+              <span className="text-xl">💸</span>
+              <p className="text-[12px] text-white/90 font-medium leading-snug flex-1">{humorToast}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>{activeModal && <InputModal type={activeModal} onClose={() => setActiveModal(null)} onSubmit={handleInputSubmit} />}</AnimatePresence>
       <BalanceModal isOpen={showBalanceModal} onClose={() => setShowBalanceModal(false)} onConfirm={handleSetBudget} currentBudget={budget} />
@@ -761,6 +828,43 @@ function App() {
         category={quickExpenseCategory}
         onRegister={handleQuickExpenseRegister}
       />
+
+      {/* ── TOAST NUEVA VERSIÓN DISPONIBLE ── */}
+      <AnimatePresence>
+        {showUpdateToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-28 left-4 right-4 z-[200] max-w-md mx-auto"
+          >
+            <div className="bg-black border border-gold/60 rounded-2xl shadow-2xl shadow-gold/10 overflow-hidden">
+              <div className="h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
+              <div className="px-4 py-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-gold/10 border border-gold/30 flex items-center justify-center shrink-0">
+                  <Zap size={15} className="text-gold" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] text-gold font-black uppercase tracking-widest">✦ Bóveda Actualizada</p>
+                  <p className="text-[11px] text-white/80 leading-tight">Nueva versión instalada. ¡Tu patrimonio siempre al día! 🚀</p>
+                </div>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="shrink-0 px-3 py-1.5 bg-gold text-black text-[9px] font-black uppercase tracking-widest rounded-lg"
+                >
+                  Aplicar
+                </button>
+                <button
+                  onClick={() => setShowUpdateToast(false)}
+                  className="shrink-0 text-white/30 hover:text-white transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -29,7 +29,7 @@ const CategoryGrid = ({ expenditures = {}, onCategoryClick }) => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => onCategoryClick?.(cat.name)}
-                        className="p-3 rounded-2xl bg-matte-black border border-gold/20 flex flex-col gap-2 group hover:border-gold/50 transition-all cursor-pointer relative overflow-hidden"
+                        className="neon-card p-3 rounded-2xl bg-matte-black flex flex-col gap-2 group transition-all cursor-pointer relative overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 p-2 opacity-5 text-gold group-hover:opacity-10 transition-opacity">
                             {cat.icon}
