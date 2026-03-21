@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Phone, UserPlus, ShieldCheck } from 'lucide-react';
+import { Zap, Phone, UserPlus, ShieldCheck, X } from 'lucide-react';
 import { LocalVaultService } from './services/LocalVaultService';
 import { SOUL_PHRASES } from './constants';
 
@@ -25,6 +25,7 @@ import ProfileView from './components/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
 import HelpModal from './components/HelpModal';
 import SecurityBanner from './components/SecurityBanner';
+import QuickExpenseModal from './components/QuickExpenseModal';
 import { AdminService } from './services/AdminService';
 import { HelpCircle } from 'lucide-react';
 
@@ -49,6 +50,10 @@ function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [soulPhrase, setSoulPhrase] = useState('');
   const [showHelp, setShowHelp] = useState(false);
+  const [quickExpenseCategory, setQuickExpenseCategory] = useState(null);
+  const [showNovedadBanner, setShowNovedadBanner] = useState(
+    () => !localStorage.getItem('gw_novedad_categorias_v1')
+  );
   const [monthlyTotals, setMonthlyTotals] = useState({});
   const [budget, setBudget] = useState(0);
 
@@ -433,6 +438,25 @@ function App() {
     setIsCalculatorOpen(false);
   };
 
+  const handleQuickExpenseRegister = ({ monto, categoria, descripcion }) => {
+    const isSaving = categoria === 'Ahorro';
+    const currentData = LocalVaultService.getData();
+    const newExpense = {
+      fecha: new Date().toISOString(),
+      monto: isSaving ? 0 : monto,
+      ahorro: isSaving ? monto : 0,
+      categoria,
+      descripcion,
+      ticketUrl: '',
+      mes: new Date().getMonth() + 1,
+      año: year,
+    };
+    currentData.expenses.push(newExpense);
+    LocalVaultService.saveData(currentData);
+    fetchData(year);
+    setQuickExpenseCategory(null);
+  };
+
   const handleSetBudget = (amount) => {
     const currentMonthNum = new Date().getMonth() + 1;
     const currentData = LocalVaultService.getData();
@@ -610,7 +634,13 @@ function App() {
                 <h3 className="text-2xl font-black uppercase tracking-tighter italic truncate max-w-[200px]">{user?.nombre || "Usuario"}</h3>
                 <p className="text-[10px] text-white/40 font-medium italic select-none mt-1 leading-tight max-w-[220px]">{soulPhrase}</p>
               </div>
-              <button onClick={() => setIsSidebarOpen(true)} className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-gold hover:bg-gold/10">
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 h-12 text-gold hover:bg-gold/10 transition-all"
+              >
+                <span className="text-[10px] font-black uppercase tracking-widest italic text-gold/80 leading-tight">
+                  Gasto<br />por mes
+                </span>
                 <Zap size={20} />
               </button>
             </div>
@@ -640,7 +670,65 @@ function App() {
             </div>
 
             <BalanceCard balance={balance} budget={safeBudget} availableBalance={availableBudget} onSetBalance={() => setShowBalanceModal(true)} />
-            <CategoryGrid expenditures={expenditures} onCategoryClick={setSelectedCategory} />
+            {/* ── BANNER NOVEDAD (una sola vez) ── */}
+            <AnimatePresence>
+              {showNovedadBanner && (
+                <motion.div
+                  initial={{ opacity: 0, y: -12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.35 }}
+                  className="mx-4 mb-4 bg-black border border-gold/50 rounded-2xl overflow-hidden shadow-lg shadow-gold/10"
+                >
+                  {/* Franja superior dorada */}
+                  <div className="h-[2px] bg-gradient-to-r from-transparent via-gold to-transparent" />
+
+                  <div className="px-4 py-3 flex items-start gap-3">
+                    {/* Ícono */}
+                    <div className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-gold/10 border border-gold/30 flex items-center justify-center">
+                      <Zap size={14} className="text-gold" />
+                    </div>
+
+                    {/* Texto */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] text-gold font-black uppercase tracking-[0.2em] mb-0.5">
+                        ✦ Novedad Elite
+                      </p>
+                      <p className="text-[11px] text-white/80 leading-snug">
+                        Ahora puedes{' '}
+                        <span className="text-gold font-black">tocar cualquier categoría</span>
+                        {' '}para registrar un gasto al instante, con teclado automático.
+                      </p>
+                    </div>
+
+                    {/* Botón cerrar */}
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('gw_novedad_categorias_v1', 'true');
+                        setShowNovedadBanner(false);
+                      }}
+                      className="shrink-0 mt-0.5 text-white/30 hover:text-gold transition-colors p-1"
+                      aria-label="Cerrar aviso"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <CategoryGrid expenditures={expenditures} onCategoryClick={setQuickExpenseCategory} />
+
+            {/* TIP: Categorías clicables */}
+            <div className="px-4 -mt-1 mb-2">
+              <div className="flex items-center gap-2 bg-gold/5 border border-gold/15 rounded-xl px-3 py-2">
+                <Zap size={11} className="text-gold/60 shrink-0" />
+                <p className="text-[9px] text-gold/60 italic leading-tight">
+                  Toca una categoría para registrar un gasto rápido · Usa <span className="font-black not-italic">Gasto por mes</span> para ver el historial mensual
+                </p>
+              </div>
+            </div>
+
             <AnimatePresence>{selectedCategory && <ExpenseTable category={selectedCategory} expenses={allExpenses} onClose={() => setSelectedCategory(null)} onDelete={handleDeleteExpense} />}</AnimatePresence>
             <HumorDashboard categoryExpenditures={expenditures} />
             <ActionButtons onAction={setActiveModal} />
@@ -667,6 +755,12 @@ function App() {
       <BalanceModal isOpen={showBalanceModal} onClose={() => setShowBalanceModal(false)} onConfirm={handleSetBudget} currentBudget={budget} />
       <CalculatorModal isOpen={isCalculatorOpen} onClose={() => setIsCalculatorOpen(false)} onRegister={handleCalculatorRegister} />
       <AnimatePresence>{showOnboarding && <OnboardingModal onAccept={handleAcceptOnboarding} />}</AnimatePresence>
+      <QuickExpenseModal
+        isOpen={!!quickExpenseCategory}
+        onClose={() => setQuickExpenseCategory(null)}
+        category={quickExpenseCategory}
+        onRegister={handleQuickExpenseRegister}
+      />
     </div>
   );
 }
