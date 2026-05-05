@@ -1,9 +1,20 @@
 services:
   wallet:
+    image: golden-wallet-elite:latest
     build: .
     restart: unless-stopped
     networks:
       - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.golden-wallet.rule=Host(`wallet.kaneuroflujoai.cloud`)"
+      - "traefik.http.routers.golden-wallet.entrypoints=websecure"
+      - "traefik.http.routers.golden-wallet.tls.certresolver=letsencrypt"
+      - "traefik.http.services.golden-wallet.loadbalancer.server.port=80"
+      - "traefik.http.routers.golden-wallet-http.rule=Host(`wallet.kaneuroflujoai.cloud`)"
+      - "traefik.http.routers.golden-wallet-http.entrypoints=web"
+      - "traefik.http.middlewares.golden-wallet-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.golden-wallet-http.middlewares=golden-wallet-redirect"
 
 networks:
   dokploy-network:
